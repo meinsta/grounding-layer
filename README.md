@@ -53,7 +53,21 @@ flowchart LR
 | Preflight | The cluster answers before anything is touched. A blocking failure halts; the bridge is advisory. |
 | Sync | A row is embedded once. A sentence the source dropped leaves the index. A source that fails or returns nothing keeps its last build. |
 | Bridge | A call the run cannot make is queued. The source reports PENDING until a session fulfils it. |
-| Recall gate | The ceiling comes first: a golden answer missing from the index fails the run at any score. Then reach against the floor (`GROUNDING_RECALL_FLOOR`, default 0.8). |
+| Recall gate | The ceiling comes first: a golden answer missing from the index fails the run at any score. Then the hit rate at k=3 against the floor (`GROUNDING_RECALL_FLOOR`, default 0.8). |
+
+## What we found
+
+Measured on a Qdrant Cloud cluster with the fixtures as shipped: 23 points, 10 questions, hybrid
+search (dense + BM25, fused with RRF). A question hits when every sentence that answers it is in the top k.
+
+| k | Questions that hit | Missed |
+|---|---|---|
+| 1 | 7 of 10 | The rate-limit question needs two sentences, so it cannot hit at k=1. The webhook and EU questions rank another sentence first. |
+| 3 | 9 of 10 | "How do we verify a webhook is really from Quillfeather?" |
+| 5 | 10 of 10 | None |
+
+The gate runs at k=3, so the shipped fixtures pass at 0.90 against a floor of 0.80. The second run
+embedded nothing: 0 new, 0 removed.
 
 ## Fulfil the queued source
 

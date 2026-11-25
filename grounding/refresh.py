@@ -14,7 +14,7 @@ from . import sources
 
 COLL = os.environ.get("GROUNDING_COLLECTION", "grounding")
 FLOOR = float(os.environ.get("GROUNDING_RECALL_FLOOR", "0.8"))
-K = 5
+K = 3
 
 
 def sync(source, rows):
@@ -34,13 +34,12 @@ def sync(source, rows):
 
 def recall_gate():
     gold = json.load(open(os.path.join(sources.FIX, "golden.json")))
-    r = recall.reach(target=[t for g in gold for t in g["target"]], queries=[g["q"] for g in gold],
-                     fetch=lambda q: [p["payload"]["text"] for p in Q.hybrid_query(COLL, q, limit=K)],
-                     corpus=[p["payload"]["text"] for p in Q.scroll(COLL)])
-    line = f"reach {r['reached']}/{r['target']} = {r['reach']:.2f}, ceiling {r['ceiling']:.2f}"
+    r = recall.hit_rate(gold, fetch=lambda q: [p["payload"]["text"] for p in Q.hybrid_query(COLL, q, limit=K)],
+                        corpus=[p["payload"]["text"] for p in Q.scroll(COLL)])
+    line = f"hit@{K} {r['hits']}/{r['questions']} = {r['hit_rate']:.2f}, ceiling {r['ceiling']:.2f}"
     if r["not_in_index"]:                       # a golden answer the index never held is an ingest bug at any score
         raise RuntimeError(f"{line}; not in the index: {r['not_in_index'][:3]}")
-    if r["reach"] < FLOOR:
+    if r["hit_rate"] < FLOOR:
         raise RuntimeError(f"{line}; below the floor of {FLOOR}; missed: {r['missed'][:3]}")
     return line
 

@@ -30,6 +30,7 @@ def test_golden_targets_are_in_the_fixtures():
 
 def test_refresh_is_incremental_prunes_and_survives_a_bad_source():
     _fake_cluster()
+    refresh.FLOOR = 0          # the stand-in ranks by word overlap; ranking quality is measured on a real cluster
     log = []
     assert refresh.main(log.append) == [] and any("tickets: PENDING" in l for l in log)       # queued, not failed
     n = len(STORE)
