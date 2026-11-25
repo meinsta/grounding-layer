@@ -1,43 +1,48 @@
 # grounding-layer
 
-**A scheduled refresh that keeps product and field sources current in Qdrant, and tells you when it stops being true.**
+**Keep product and field sources current in Qdrant on a schedule, with a recall gate that reports every drop.**
 
-Every asset an agent writes is only as good as the index under it. This kit syncs three kinds of
-source into one hybrid collection, removes what the sources retired, and ends each run with a
-recall gate against a frozen golden set.
+When did the index under your agent last check its sources? If the docs team edited a sentence
+yesterday and the index was built last month, the agent is still quoting the old one.
 
-Built on [field-kit](https://github.com/meinsta/field-kit).
+This kit syncs your sources into a Qdrant hybrid collection, removes the rows the sources retired, and
+ends each run by asking a frozen set of golden questions. When an answer goes missing, the run
+says so and exits 1.
 
-## Get started
+Built on [field-kit](https://github.com/meinsta/field-kit), which lists the other kits that read
+this collection.
+
+## Run It on the Sample Company
 
 ```bash
 git clone https://github.com/meinsta/grounding-layer && cd grounding-layer
 pip install -r requirements.txt
-python3 test_offline.py                       # no cluster, no keys
+python3 test_offline.py                       # runs offline
 
 export QDRANT_URL=... QDRANT_API_KEY=...      # a Qdrant Cloud cluster with Cloud Inference
 python3 -m grounding.refresh
 ```
 
-Schedule it weekly:
+Schedule it weekly with cron:
 
 ```
 0 7 * * 1  cd <checkout> && python3 -m grounding.refresh >> refresh.log 2>&1
 ```
 
-## Meet Quillfeather
+## Learn on a Made-Up Company Called Quillfeather
 
-Quillfeather Dispatch is a made-up delivery-routing API. The fixtures hold what a real company has:
+Quillfeather Dispatch is a fictional delivery-routing API. Its fixtures cover the sources a company
+already has, and this table shows how each reaches the index.
 
-| Source | Fixture | How it arrives |
+| Source | Fixture | How It Arrives |
 |---|---|---|
-| Product docs | `fixtures/docs/*.md` | Read directly, one row per sentence |
-| Field notes | `fixtures/field/calls.json` | Read directly, described by segment and vertical |
-| Support tickets | `fixtures/tickets-response.json` | Through a connector only a signed-in session can call |
+| Product docs | `fixtures/docs/*.md` | Read from disk, one row per sentence |
+| Field notes | `fixtures/field/calls.json` | Read from disk, described by segment and vertical |
+| Support tickets | `fixtures/tickets-response.json` | Through a connector that needs a signed-in session |
 
 `fixtures/golden.json` holds 10 questions and the 11 sentences that answer them.
 
-## How a run works
+## Know What Each Refresh Guarantees
 
 ```mermaid
 flowchart LR
@@ -48,28 +53,31 @@ flowchart LR
   G -- ok --> OK[exit 0]
 ```
 
-| Step | What it guarantees |
+The run has four steps, and each one makes a promise you can test.
+
+| Step | Guarantee |
 |---|---|
-| Preflight | The cluster answers before anything is touched. A blocking failure halts; the bridge is advisory. |
-| Sync | A row is embedded once. A sentence the source dropped leaves the index. A source that fails or returns nothing keeps its last build. |
-| Bridge | A call the run cannot make is queued. The source reports PENDING until a session fulfils it. |
-| Recall gate | The ceiling comes first: a golden answer missing from the index fails the run at any score. Then the hit rate at k=3 against the floor (`GROUNDING_RECALL_FLOOR`, default 0.8). |
+| Preflight | The cluster answers before the run touches anything. A cluster failure halts the run, and the bridge check is advisory. |
+| Sync | The run embeds each row once. A sentence the source dropped leaves the index. A source that fails or returns zero rows keeps its last build. |
+| Bridge | The run queues a call that needs a signed-in session, and its source reports PENDING until a session fulfills it. |
+| Recall gate | The ceiling comes first: a golden answer missing from the index fails the run at any score. Then the run holds the hit rate at k=3 to the floor (`GROUNDING_RECALL_FLOOR`, default 0.8). |
 
-## What we found
+## See the Results Measured on a Live Cluster
 
-Measured on a Qdrant Cloud cluster with the fixtures as shipped: 23 points, 10 questions, hybrid
-search (dense + BM25, fused with RRF). A question hits when every sentence that answers it is in the top k.
+These numbers come from a Qdrant Cloud cluster with the fixtures as shipped: 23 points, 10
+questions, and hybrid search (dense and BM25, fused with RRF). A question counts as answered when
+every sentence that answers it is in the top k.
 
-| k | Questions that hit | Missed |
+| Top K | Questions Answered | Missed |
 |---|---|---|
-| 1 | 7 of 10 | The rate-limit question needs two sentences, so it cannot hit at k=1. The webhook and EU questions rank another sentence first. |
+| 1 | 7 of 10 | The rate-limit question, whose answer takes two sentences, and the webhook and EU questions, which rank another sentence first |
 | 3 | 9 of 10 | "How do we verify a webhook is really from Quillfeather?" |
 | 5 | 10 of 10 | None |
 
-The gate runs at k=3, so the shipped fixtures pass at 0.90 against a floor of 0.80. The second run
-embedded nothing: 0 new, 0 removed.
+The gate runs at k=3, so the shipped fixtures pass at 0.90 against a floor of 0.80. A second run
+embedded zero new rows and removed zero.
 
-## Fulfil the queued source
+## Bring In Sources That Need a Signed-In Session
 
 The first run reports `tickets: PENDING`. Store the connector's raw result under the queued key:
 
@@ -79,10 +87,11 @@ python3 -m fieldkit.bridge --fulfil <key> --from-json fixtures/tickets-response.
 python3 -m grounding.refresh
 ```
 
-In production a headless session issues the queued calls and `--from-transcript` stores them.
+In production, a headless session issues the queued calls and `--from-transcript` stores each raw
+result.
 
-## Make it yours
+## Point It at Your Own Sources
 
-Replace the three generators in [`grounding/sources.py`](grounding/sources.py). A row is
-`{text, source, ref, ...payload}`. Then freeze your own golden set: questions your team gets, and
-the exact sentences that answer them.
+Replace the generators in [`grounding/sources.py`](grounding/sources.py). A row is
+`{text, source, ref, ...payload}`. Then freeze your own golden set: the questions your team gets,
+and the exact sentences that answer them.
