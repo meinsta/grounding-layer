@@ -1,0 +1,5 @@
+{"tickets": [
+ {"id": "T-101", "summary": "Customer asks whether the old key still works after rotation; answered 24 hours, docs link sent."},
+ {"id": "T-102", "summary": "Webhook signature check failed because the customer hashed the parsed body instead of the raw body."},
+ {"id": "T-103", "summary": "Workspace move from us-east to eu-central scheduled; customer asked how long the maintenance window is."}
+]}

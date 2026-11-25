@@ -1,0 +1,8 @@
+[
+ {"id": "call-001", "segment": "enterprise", "vertical": "grocery delivery", "text": "Our security team will block the rollout unless we can rotate API keys without any downtime for the driver app."},
+ {"id": "call-002", "segment": "mid-market", "vertical": "furniture retail", "text": "We hit the rate limit every Monday morning when the weekly routes are optimized in one batch."},
+ {"id": "call-003", "segment": "enterprise", "vertical": "pharmacy logistics", "text": "Legal needs written confirmation that driver data stays inside the EU before we sign."},
+ {"id": "call-004", "segment": "SMB", "vertical": "florist network", "text": "We missed deliveries because webhook events for the same route showed up out of order in our old vendor."},
+ {"id": "call-005", "segment": "mid-market", "vertical": "meal kits", "text": "The team wants one read-only key for the analytics dashboard so nobody can cancel a route by accident."},
+ {"id": "call-006", "segment": "enterprise", "vertical": "parcel carrier", "text": "At peak we send around four thousand requests per minute, so the default limit is a blocker for the pilot."}
+]
